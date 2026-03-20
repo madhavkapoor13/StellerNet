@@ -1,0 +1,157 @@
+# StellerNet — Exoplanet Detection with Deep Learning
+
+> Detecting exoplanet transits in Kepler space telescope light curves using a 1D Convolutional Neural Network.
+
+---
+
+## Overview
+
+When a planet passes in front of a star, it causes a tiny dip in the star's brightness. This project trains a CNN to automatically detect these **transit signals** from NASA's Kepler mission data — a classic needle-in-a-haystack problem with extreme class imbalance (135:1 ratio).
+
+---
+
+## Results
+
+| Metric | Value |
+|---|---|
+| Planet Precision | 0.714 |
+| Planet Recall | 0.714 |
+| F1-Score | 0.714 |
+| Overall Accuracy | 99.6% |
+| PR-AUC | 0.692 |
+| Optimal Threshold | 0.7 |
+
+### Visualisations
+
+| Light Curves | Confusion Matrix |
+|---|---|
+| ![Light Curves](visual/light_curves.png) | ![Confusion Matrix](visual/confusion_matrix.png) |
+
+| Training Loss | Precision-Recall Curve |
+|---|---|
+| ![Training Loss](visual/training_loss.png) | ![PR Curve](visual/pr_curve.png) |
+
+---
+
+## The Challenge
+
+| Problem | Solution |
+|---|---|
+| 135:1 class imbalance | SMOTE oversampling at 10% ratio |
+| Raw flux values vary per star | Per-star normalisation (axis=1) |
+| Overfitting on rare class | Dropout (0.5) + early stopping |
+| Unstable gradients | Gradient clipping + LR scheduler |
+| No middle ground threshold | Threshold tuning across 0.3–0.7 |
+
+---
+
+## Model Architecture — TunedCNN
+
+```
+Input (1 × 3197)
+    ↓  Conv1D(1→32, k=5) + BatchNorm + ReLU + MaxPool
+    ↓  Conv1D(32→64, k=5) + BatchNorm + ReLU + MaxPool
+    ↓  Conv1D(64→128, k=3) + BatchNorm + ReLU + MaxPool
+    ↓  AdaptiveAvgPool → (128,)
+    ↓  Linear(128→64) + ReLU + Dropout(0.5)
+    ↓  Linear(64→1) + Sigmoid
+Output: probability of exoplanet transit
+```
+
+---
+
+## Project Structure
+
+```
+StellerNet/
+├── data/
+│   └── exoplanet/
+│       ├── exoTrain.csv        # download separately
+│       └── exoTest.csv         # download separately
+├── notebooks/
+│   └── 01_eda.ipynb            # EDA, preprocessing, CNN training, evaluation
+├── visual/
+│   ├── confusion_matrix.png
+│   ├── light_curves.png
+│   ├── pr_curve.png
+│   ├── probability_dist.png
+│   └── training_loss.png
+├── .gitignore
+├── README.md
+└── requirements.txt
+```
+
+---
+
+## Quickstart
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/yourusername/StellerNet.git
+cd StellerNet
+pip install -r requirements.txt
+```
+
+### 2. Download the data
+
+Download from [Kaggle — Kepler Labelled Time Series Data](https://www.kaggle.com/datasets/keplersmachines/kepler-labelled-time-series-data) and place both CSV files in `data/exoplanet/`.
+
+### 3. Run the notebook
+
+```bash
+jupyter notebook notebooks/01_eda.ipynb
+```
+
+---
+
+## Requirements
+
+```
+torch
+numpy
+pandas
+scikit-learn
+imbalanced-learn
+matplotlib
+seaborn
+jupyter
+```
+
+Install:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Dataset
+
+**Source:** [NASA Kepler Mission via Kaggle](https://www.kaggle.com/datasets/keplersmachines/kepler-labelled-time-series-data)
+
+| Split | Total Stars | Exoplanet Hosts | Ratio |
+|---|---|---|---|
+| Train | 5,087 | 37 | 0.7% |
+| Test | 570 | 5 | 0.9% |
+
+Each light curve contains 3,197 flux measurements over time.
+
+---
+
+## Key Decisions
+
+**Why per-star normalisation?**
+Raw Kepler flux values differ vastly between stars. Normalising each star against itself (`axis=1`) preserves the transit dip shape while removing absolute scale differences.
+
+**Why 10% SMOTE instead of full balance?**
+Full SMOTE (100% balance) gave recall 1.00 but precision 0.01 — the model memorised synthetic patterns. At 10%, it learned real transit shapes: precision and recall both reached 0.714.
+
+**Why threshold 0.7?**
+Standard 0.5 threshold flagged too many false alarms. At 0.7 the model is selective — only confident predictions are classified as planets.
+
+---
+
+## Author
+
+**Madhav Kapoor**
